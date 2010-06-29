@@ -103,10 +103,11 @@ public class Processor extends AbstractProcessor {
 
 			String propType = TypeVarUtil.resolve(pe.getTypeUtils(), getter.getReturnType(), stubInterface).toString();
 
-			g.getField(propName).type(propType).setProtected();
-			g.getMethod(methodName).returnType(propType).body.line("return {};", propName);
+			String fieldName = "_" + propName;
+			g.getField(fieldName).type(propType).setProtected();
+			g.getMethod(methodName).returnType(propType).body.line("return {};", fieldName);
 			if (setter != null) {
-				g.getMethod(setterName).argument(propType, propName).body.line("this.{} = {};", propName, propName);
+				g.getMethod(setterName).argument(propType, fieldName).body.line("this.{} = {};", fieldName, fieldName);
 			}
 
 			taken.add(getter);

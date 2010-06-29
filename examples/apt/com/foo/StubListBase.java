@@ -8,10 +8,10 @@ import java.util.ListIterator;
 @SuppressWarnings("all")
 public class StubListBase<E> implements List<E> {
 
-    protected boolean empty;
+    protected boolean _empty;
 
     public boolean isEmpty() {
-        return empty;
+        return _empty;
     }
 
     @Override
@@ -103,12 +103,12 @@ public class StubListBase<E> implements List<E> {
     }
 
     @Override
-    public ListIterator<E> listIterator() {
+    public ListIterator<E> listIterator(int arg0) {
         return null;
     }
 
     @Override
-    public ListIterator<E> listIterator(int arg0) {
+    public ListIterator<E> listIterator() {
         return null;
     }
 
