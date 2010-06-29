@@ -5,16 +5,23 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
+@SuppressWarnings("all")
 public class StubList2Base implements List<String> {
 
-    @Override
-    public boolean remove(Object arg0) {
-        return false;
+    protected boolean empty;
+
+    public boolean isEmpty() {
+        return empty;
     }
 
     @Override
     public String remove(int arg0) {
         return null;
+    }
+
+    @Override
+    public boolean remove(Object arg0) {
+        return false;
     }
 
     @Override
@@ -51,11 +58,6 @@ public class StubList2Base implements List<String> {
     }
 
     @Override
-    public boolean isEmpty() {
-        return false;
-    }
-
-    @Override
     public boolean retainAll(Collection<?> arg0) {
         return false;
     }
@@ -76,12 +78,12 @@ public class StubList2Base implements List<String> {
     }
 
     @Override
-    public <T> T[] toArray(T[] arg0) {
+    public Object[] toArray() {
         return null;
     }
 
     @Override
-    public Object[] toArray() {
+    public <T> T[] toArray(T[] arg0) {
         return null;
     }
 

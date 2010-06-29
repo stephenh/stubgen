@@ -19,14 +19,16 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.WildcardType;
 
 import joist.sourcegen.GClass;
+import joist.sourcegen.GField;
 import joist.sourcegen.GMethod;
 import joist.util.Join;
 
+import org.exigencecorp.aptutil.PrimitivesUtil;
+import org.exigencecorp.aptutil.PropUtil;
+import org.exigencecorp.aptutil.TypeVarUtil;
+import org.exigencecorp.aptutil.Util;
 import org.stubgen.GenStub;
 
 @SupportedAnnotationTypes({ "org.stubgen.GenStub" })
@@ -66,7 +68,54 @@ public class Processor extends AbstractProcessor {
 		g.implementsInterface(interfaceName);
 		g.addAnnotation("@SuppressWarnings(\"all\")");
 
+		List<ExecutableElement> taken = new ArrayList<ExecutableElement>();
+		for (ExecutableElement getter : methodsIn(pe.getElementUtils().getAllMembers((TypeElement) stubInterface.asElement()))) {
+			if (getter.getParameters().size() > 0 || getter.getThrownTypes().size() > 0) {
+				continue;
+			}
+			String methodName = getter.getSimpleName().toString();
+
+			if (methodName.equals("getClass")) {
+				continue;
+			}
+
+			final String propName;
+			if (methodName.startsWith("get") && methodName.length() > 3) {
+				propName = Util.lower(methodName.substring(3));
+			} else if (methodName.startsWith("is") && methodName.length() > 2) {
+				propName = Util.lower(methodName.substring(2));
+			} else {
+				continue;
+			}
+
+			String setterName = "set" + Util.upper(propName);
+			ExecutableElement setter = null;
+			for (ExecutableElement setter2 : methodsIn(pe.getElementUtils().getAllMembers((TypeElement) stubInterface.asElement()))) {
+				if (setter2.getSimpleName().toString().equals(setterName)//
+					&& setter2.getThrownTypes().size() == 0 //
+					&& setter2.getParameters().size() == 1 //
+					&& pe.getTypeUtils().isSameType(setter2.getParameters().get(0).asType(), getter.getReturnType())) {
+					setter = setter2;
+					taken.add(setter2);
+					break;
+				}
+			}
+
+			String propType = TypeVarUtil.resolve(pe.getTypeUtils(), getter.getReturnType(), stubInterface).toString();
+
+			g.getField(propName).type(propType).setProtected();
+			g.getMethod(methodName).returnType(propType).body.line("return {};", propName);
+			if (setter != null) {
+				g.getMethod(setterName).argument(propType, propName).body.line("this.{} = {};", propName, propName);
+			}
+
+			taken.add(getter);
+		}
+
 		for (ExecutableElement method : methodsIn(pe.getElementUtils().getAllMembers((TypeElement) stubInterface.asElement()))) {
+			if (taken.contains(method)) {
+				continue;
+			}
 			if ("java.lang.Object".equals(method.getEnclosingElement().toString())) {
 				continue;
 			}
@@ -76,12 +125,12 @@ public class Processor extends AbstractProcessor {
 
 			List<String> params = new ArrayList<String>();
 			for (VariableElement p : method.getParameters()) {
-				String parameterType = resolveTypeVars(p.asType(), stubInterface).toString();
+				String parameterType = TypeVarUtil.resolve(pe.getTypeUtils(), p.asType(), stubInterface).toString();
 				params.add(parameterType + " " + p.getSimpleName().toString());
 			}
 			String name = method.getSimpleName().toString() + "(" + Join.commaSpace(params) + ")";
 
-			String returnType = resolveTypeVars(method.getReturnType(), stubInterface).toString();
+			String returnType = TypeVarUtil.resolve(pe.getTypeUtils(), method.getReturnType(), stubInterface).toString();
 
 			GMethod m = g.getMethod(name).addAnnotation("@Override");
 			m.returnType(returnType);
@@ -95,8 +144,8 @@ public class Processor extends AbstractProcessor {
 			}
 
 			if (!"void".equals(returnType)) {
-				if (Primitives.isPrimitive(returnType)) {
-					m.body.line("return {};", Primitives.getDefault(returnType));
+				if (PrimitivesUtil.isPrimitive(returnType)) {
+					m.body.line("return {};", PrimitivesUtil.getDefault(returnType));
 				} else {
 					m.body.line("return null;");
 				}
@@ -104,46 +153,6 @@ public class Processor extends AbstractProcessor {
 		}
 
 		Util.saveCode(processingEnv, g, userClass);
-	}
-
-	private TypeMirror resolveTypeVars(TypeMirror type, DeclaredType stubInterface) {
-		TypeElement stubInterfaceType = (TypeElement) stubInterface.asElement();
-		if (type == null) {
-			return type;
-		} else if (type.getKind() == TypeKind.TYPEVAR) {
-			if (stubInterface.getTypeArguments().size() > 0) {
-				boolean found = false;
-				int i = 0;
-				for (TypeParameterElement tpe : stubInterfaceType.getTypeParameters()) {
-					if (processingEnv.getTypeUtils().isSameType(tpe.asType(), type)) {
-						found = true;
-						break;
-					}
-					i++;
-				}
-				if (found) {
-					return stubInterface.getTypeArguments().get(i);
-				}
-			}
-			return type;
-		} else if (type.getKind() == TypeKind.WILDCARD) {
-			WildcardType typew = (WildcardType) type;
-			return processingEnv.getTypeUtils().getWildcardType(//
-				resolveTypeVars(typew.getExtendsBound(), stubInterface),//
-				resolveTypeVars(typew.getSuperBound(), stubInterface));
-		} else if (type.getKind() == TypeKind.DECLARED) {
-			DeclaredType typed = (DeclaredType) type;
-			if (typed.getTypeArguments().size() == 0) {
-				return type;
-			}
-			TypeMirror[] resolved = new TypeMirror[typed.getTypeArguments().size()];
-			for (int i = 0; i < typed.getTypeArguments().size(); i++) {
-				resolved[i] = resolveTypeVars(typed.getTypeArguments().get(i), stubInterface);
-			}
-			return processingEnv.getTypeUtils().getDeclaredType((TypeElement) typed.asElement(), resolved);
-		} else {
-			return type;
-		}
 	}
 
 }
