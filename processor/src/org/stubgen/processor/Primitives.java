@@ -13,6 +13,7 @@ public class Primitives {
 		primitives.put("short", "Short");
 		primitives.put("int", "Integer");
 		primitives.put("long", "Long");
+		primitives.put("float", "Float");
 		primitives.put("double", "Double");
 		primitives.put("boolean", "Boolean");
 		primitives.put("char", "Char");
@@ -21,6 +22,7 @@ public class Primitives {
 		defaults.put("short", "0");
 		defaults.put("int", "0");
 		defaults.put("long", "0l");
+		defaults.put("float", "0f");
 		defaults.put("double", "0.0");
 		defaults.put("boolean", "false");
 		defaults.put("char", "'a'");
